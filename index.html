@@ -462,9 +462,10 @@
     if (currentTimeLabelEl) currentTimeLabelEl.textContent = "00:00";
     if (durationLabelEl) durationLabelEl.textContent = "00:00";
 
+    // 播放模式：顺序播放 / 单曲循环 / 随机播放
     const PLAY_MODE_SEQUENCE = "sequence";
-    const PLAY_MODE_LOOP_ALL = "loop_all";
-    const PLAY_MODE_SINGLE = "single";
+    const PLAY_MODE_SINGLE  = "single";
+    const PLAY_MODE_SHUFFLE = "shuffle";
     let playMode = PLAY_MODE_SEQUENCE;
 
     let currentLang = "zh";
@@ -514,11 +515,11 @@
         sourceFilterNetease: "网易云音乐",
         sourceFilterQobuz: "Qobuz",
         playModeSequence: "顺序播放",
-        playModeLoopAll: "列表循环",
         playModeSingle: "单曲循环",
+        playModeShuffle: "随机播放",
         playModeSequenceShort: "顺序",
-        playModeLoopAllShort: "列表循环",
-        playModeSingleShort: "单曲"
+        playModeSingleShort: "单曲",
+        playModeShuffleShort: "随机"
       },
       en: {
         appTitle: "Pikachu Music Station",
@@ -564,11 +565,11 @@
         sourceFilterNetease: "NetEase",
         sourceFilterQobuz: "Qobuz",
         playModeSequence: "Sequence",
-        playModeLoopAll: "Loop All",
         playModeSingle: "Single Loop",
+        playModeShuffle: "Shuffle",
         playModeSequenceShort: "Seq",
-        playModeLoopAllShort: "Loop",
-        playModeSingleShort: "Single"
+        playModeSingleShort: "Single",
+        playModeShuffleShort: "Shuffle"
       }
     };
 
@@ -723,9 +724,13 @@
       const t = langStaticTexts[currentLang];
       if (!playModeBtn) return;
       let text = "";
-      if (playMode === PLAY_MODE_SEQUENCE) text = "➡ " + (t.playModeSequenceShort || t.playModeSequence);
-      else if (playMode === PLAY_MODE_LOOP_ALL) text = "🔁 " + (t.playModeLoopAllShort || t.playModeLoopAll);
-      else text = "🔂 " + (t.playModeSingleShort || t.playModeSingle);
+      if (playMode === PLAY_MODE_SEQUENCE) {
+        text = "➡ " + (t.playModeSequenceShort || t.playModeSequence);
+      } else if (playMode === PLAY_MODE_SINGLE) {
+        text = "🔂 " + (t.playModeSingleShort || t.playModeSingle);
+      } else { // PLAY_MODE_SHUFFLE
+        text = "🔀 " + (t.playModeShuffleShort || t.playModeShuffle);
+      }
       playModeBtn.textContent = text;
     }
     function applyLanguage() {
@@ -784,9 +789,13 @@
     langToggleBtn.addEventListener("click", () => { currentLang = currentLang === "zh" ? "en" : "zh"; applyLanguage(); });
     if (playModeBtn) {
       playModeBtn.addEventListener("click", () => {
-        if (playMode === PLAY_MODE_SEQUENCE) playMode = PLAY_MODE_LOOP_ALL;
-        else if (playMode === PLAY_MODE_LOOP_ALL) playMode = PLAY_MODE_SINGLE;
-        else playMode = PLAY_MODE_SEQUENCE;
+        if (playMode === PLAY_MODE_SEQUENCE) {
+          playMode = PLAY_MODE_SINGLE;      // 顺序 → 单曲
+        } else if (playMode === PLAY_MODE_SINGLE) {
+          playMode = PLAY_MODE_SHUFFLE;     // 单曲 → 随机
+        } else {
+          playMode = PLAY_MODE_SEQUENCE;    // 随机 → 顺序
+        }
         updatePlayModeLabel();
       });
     }
@@ -1281,14 +1290,38 @@
     }
     function playNextInPlaylist(fromEnded = false) {
       if (!playlist.length) return;
-      if (fromEnded && playMode === PLAY_MODE_SINGLE) {
-        if (currentPlaylistPos >= 0 && currentPlaylistPos < playlist.length) playFromPlaylist(currentPlaylistPos);
+
+      // 单曲循环：自然播放结束时重新播放当前这首
+      if (playMode === PLAY_MODE_SINGLE && fromEnded) {
+        if (currentPlaylistPos >= 0 && currentPlaylistPos < playlist.length) {
+          playFromPlaylist(currentPlaylistPos);
+        }
         return;
       }
+
+      // 随机播放：自然结束 or 手动下一首都随机挑一首
+      if (playMode === PLAY_MODE_SHUFFLE) {
+        if (playlist.length === 1) {
+          // 只有一首歌时，随机等于原地打转：结束时就再播一次
+          if (fromEnded) playFromPlaylist(currentPlaylistPos);
+          return;
+        }
+        let next = currentPlaylistPos;
+        // 尽量不要重复同一首
+        for (let i = 0; i < 6 && next === currentPlaylistPos; i++) {
+          next = Math.floor(Math.random() * playlist.length);
+        }
+        if (next === currentPlaylistPos) {
+          next = (currentPlaylistPos + 1) % playlist.length;
+        }
+        playFromPlaylist(next);
+        return;
+      }
+
+      // 顺序播放：播完最后一首就停止，不再循环
       let next = currentPlaylistPos + 1;
       if (next >= playlist.length) {
-        if (fromEnded && playMode === PLAY_MODE_LOOP_ALL) next = 0;
-        else return;
+        return;
       }
       playFromPlaylist(next);
     }
