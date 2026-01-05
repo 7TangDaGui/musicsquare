@@ -1207,6 +1207,365 @@
           "playlist";
       }
     }
+    
+    /* 音乐广场样式 */
+    .music-square-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+    
+    .multi-source-toggle {
+      display: flex;
+      align-items: center;
+    }
+    
+    .multi-source-checkbox {
+      display: none;
+    }
+    
+    .multi-source-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+      color: #fff;
+    }
+    
+    .multi-source-label:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .multi-source-checkbox:checked + .multi-source-label {
+      background: #4CAF50;
+    }
+    
+    .theme-toggle-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+    
+    .theme-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: rotate(15deg);
+    }
+    
+    .user-avatar-container {
+      position: relative;
+    }
+    
+    .avatar-default {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 16px;
+    }
+    
+    .avatar-default:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+    }
+    
+    .avatar-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .user-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 10px;
+      width: 200px;
+      background: #2a2a2a;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .user-avatar-container:hover .user-dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .user-info {
+      padding: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .avatar-placeholder {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .user-name {
+      font-size: 14px;
+      color: #fff;
+    }
+    
+    .dropdown-menu {
+      padding: 8px 0;
+    }
+    
+    .dropdown-item {
+      width: 100%;
+      padding: 10px 15px;
+      background: none;
+      border: none;
+      text-align: left;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+    
+    .dropdown-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .dropdown-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 8px 0;
+    }
+    
+    /* 主题变量 */
+    [data-theme="light"] {
+      --bg-primary: #f5f5f5;
+      --bg-secondary: #ffffff;
+      --text-primary: #333333;
+      --text-secondary: #666666;
+      --border-color: #e0e0e0;
+    }
+    
+    [data-theme="dark"] {
+      --bg-primary: #1a1a1a;
+      --bg-secondary: #2a2a2a;
+      --text-primary: #ffffff;
+      --text-secondary: #cccccc;
+      --border-color: #404040;
+    }
+    
+    /* 模态框样式 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .modal {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 30px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      transform: translateY(-20px);
+      transition: transform 0.3s ease;
+    }
+    
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+    
+    .modal-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: var(--text-primary);
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    
+    .btn-primary {
+      flex: 1;
+      padding: 12px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+      background: #45a049;
+    }
+    
+    .btn-secondary {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+      background: var(--border-color);
+    }
+    
+    /* 提示框样式 */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      background: #333;
+      color: white;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      z-index: 3000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    .toast.success {
+      background: #4CAF50;
+    }
+    
+    .toast.error {
+      background: #f44336;
+    }
+    
+    .toast.info {
+      background: #2196F3;
+    }
+    
+    /* 同步平台样式 */
+    .sync-platforms {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    
+    .sync-platform {
+      display: flex;
+      align-items: center;
+    }
+    
+    .sync-checkbox {
+      display: none;
+    }
+    
+    .sync-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: var(--bg-primary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex: 1;
+      color: var(--text-primary);
+    }
+    
+    .sync-label:hover {
+      background: var(--border-color);
+    }
+    
+    .sync-checkbox:checked + .sync-label {
+      background: #4CAF50;
+      color: white;
+    }
+    
+    .sync-label i {
+      font-size: 18px;
+      width: 24px;
+      text-align: center;
+    }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -1234,6 +1593,41 @@
           快捷键：Space 播放/暂停 · ←/→ 跳转 · ↑/↓ 音量 · N/P 切歌 · F 收藏 · L 切换歌词效果
         </div>
         <button id="shortcut-toggle-btn" class="shortcut-toggle-btn ripple-target" title="快捷键说明">⌨️</button>
+        
+        <!-- 音乐广场功能区域 -->
+        <div class="music-square-controls">
+          <!-- 多源搜索切换 -->
+          <div class="multi-source-toggle">
+            <input type="checkbox" id="multi-source-checkbox" class="multi-source-checkbox">
+            <label for="multi-source-checkbox" class="multi-source-label" title="启用多源搜索">
+              <i class="fas fa-layer-group"></i>
+              <span>多源</span>
+            </label>
+          </div>
+          
+          <!-- 主题切换 -->
+          <button id="theme-toggle" class="theme-toggle-btn ripple-target" title="切换主题">
+            <i class="fas fa-moon"></i>
+          </button>
+          
+          <!-- 用户头像/登录 -->
+          <div class="user-avatar-container">
+            <div class="avatar-default" title="点击登录">未</div>
+            <div class="user-dropdown">
+              <div class="user-info">
+                <div class="avatar-placeholder"></div>
+                <div class="user-name">未登录</div>
+              </div>
+              <div class="dropdown-menu">
+                <button class="dropdown-item login-btn">登录</button>
+                <button class="dropdown-item register-btn">注册</button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item sync-btn">同步平台</button>
+                <button class="dropdown-item logout-btn">退出登录</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -2633,6 +3027,95 @@
     document.addEventListener('DOMContentLoaded',init);
   })();
   </script>
+  
+  <!-- 音乐广场模态框 -->
+  <div id="login-modal" class="modal-overlay">
+    <div class="modal">
+      <h3 class="modal-title">登录</h3>
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input type="text" class="form-input" id="login-username" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-input" id="login-password" required>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">登录</button>
+          <button type="button" class="btn-secondary" onclick="window.musicSquareApp?.hideModal('login')">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <div id="register-modal" class="modal-overlay">
+    <div class="modal">
+      <h3 class="modal-title">注册</h3>
+      <form id="register-form">
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input type="text" class="form-input" id="register-username" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-input" id="register-password" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">确认密码</label>
+          <input type="password" class="form-input" id="register-confirm-password" required>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">注册</button>
+          <button type="button" class="btn-secondary" onclick="window.musicSquareApp?.hideModal('register')">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <div id="sync-modal" class="modal-overlay">
+    <div class="modal">
+      <h3 class="modal-title">同步音乐平台</h3>
+      <div class="sync-platforms">
+        <div class="sync-platform">
+          <input type="checkbox" id="sync-netease" class="sync-checkbox">
+          <label for="sync-netease" class="sync-label">
+            <i class="fab fa-napster"></i>
+            <span>网易云音乐</span>
+          </label>
+        </div>
+        <div class="sync-platform">
+          <input type="checkbox" id="sync-qq" class="sync-checkbox">
+          <label for="sync-qq" class="sync-label">
+            <i class="fab fa-qq"></i>
+            <span>QQ音乐</span>
+          </label>
+        </div>
+        <div class="sync-platform">
+          <input type="checkbox" id="sync-migu" class="sync-checkbox">
+          <label for="sync-migu" class="sync-label">
+            <i class="fas fa-music"></i>
+            <span>咪咕音乐</span>
+          </label>
+        </div>
+        <div class="sync-platform">
+          <input type="checkbox" id="sync-kuwo" class="sync-checkbox">
+          <label for="sync-kuwo" class="sync-label">
+            <i class="fas fa-headphones"></i>
+            <span>酷我音乐</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" onclick="window.musicSquareApp?.syncPlatforms()">开始同步</button>
+        <button type="button" class="btn-secondary" onclick="window.musicSquareApp?.hideModal('sync')">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 提示框容器 -->
+  <div id="toast-container"></div>
+  
   <script src="music_square_app.js"></script>
 </body>
 </html>
