@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicSquare - 音乐广场</title>
+
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- bcryptjs for password hashing -->
+    <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+
+    <style>
+        /* ========== 全局样式 ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #0a0a0a;
+            color: #e5e7eb;
+            overflow: hidden;
+        }
+
+        /* ========== 登录注册页面 ========== */
+        #authPage {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #000 0%, #1a1a2e 50%, #16213e 100%);
+        }
+
+        .auth-container {
+            background: rgba(17, 24, 39, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 48px;
+            width: 90%;
+            max-width: 440px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .auth-logo {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .auth-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .auth-subtitle {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: rgba(31, 41, 55, 0.5);
+            padding: 4px;
+            border-radius: 12px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            color: #9ca3af;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+
+        .auth-tab.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            color: #fff;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #d1d5db;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+        }
+
+        .form-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .form-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .error-msg.show {
+            display: block;
+        }
+
+        /* ========== 主应用 ========== */
+        #mainApp {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        #mainApp.active {
+            display: flex;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-shrink: 0;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .nav-logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .nav-logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-search {
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 40px 10px 16px;
+            background: rgba(31, 41, 55, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-sources {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .source-tag {
+            padding: 8px 14px;
+            background: rgba(31, 41, 55, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            color: #9ca3af;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        .source-tag.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .multi-toggle {
+            padding: 8px 12px;
+            background: rgba(31, 41, 55, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            color: #9ca3af;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .multi-toggle.active {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: #8b5cf6;
+            color: #c4b5fd;
+        }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .theme-btn {
+            width: 36px;
+            height: 36px;
+            background: rgba(31, 41, 55, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            color: #9ca3af;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+
+        .theme-btn:hover {
+            color: #3b82f6;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .user-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            min-width: 200px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 1000;
+        }
+
+        .user-menu.show {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 12px 16px;
+            color: #d1d5db;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .menu-item:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+
+        .menu-item.logout {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            color: #ef4444;
+        }
+
+        .menu-item.logout:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* 主内容 */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 240px;
+            background: rgba(17, 24, 39, 0.5);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+            padding: 0 12px;
+        }
+
+        .sidebar-item {
+            padding: 10px 12px;
+            margin-bottom: 2px;
+            border-radius: 8px;
+            color: #d1d5db;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+
+        .sidebar-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        .add-playlist-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px dashed rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            color: #3b82f6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .add-playlist-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-style: solid;
+        }
+
+        /* 内容区 */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .content-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .content-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .song-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px;
+        }
+
+        .song-item {
+            display: grid;
+            grid-template-columns: 50px 1fr 150px 80px 100px;
+            gap: 16px;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(31, 41, 55, 0.3);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .song-item:hover {
+            background: rgba(31, 41, 55, 0.6);
+            transform: translateX(4px);
+        }
+
+        .song-index {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .song-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .song-cover {
+            width: 48px;
+            height: 48px;
+            border-radius: 6px;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .song-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .song-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .song-artist {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .song-album {
+            font-size: 13px;
+            color: #9ca3af;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .song-duration {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .song-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .song-action {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(31, 41, 55, 0.6);
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .song-action:hover {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        /* 播放器 */
+        .player {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-cover {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .player-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .player-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .player-artist {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .player-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls-buttons {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .control-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(31, 41, 55, 0.6);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: rgba(59, 130, 246, 0.3);
+        }
+
+        .control-btn.play {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+        }
+
+        .control-btn.play:hover {
+            transform: scale(1.05);
+        }
+
+        .progress-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .progress-time {
+            font-size: 12px;
+            color: #6b7280;
+            min-width: 40px;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+            border-radius: 2px;
+            width: 0%;
+        }
+
+        .player-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .volume-slider {
+            width: 100px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .volume-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+            border-radius: 2px;
+            width: 70%;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.2);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(17, 24, 39, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(31, 41, 55, 0.6);
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -240px;
+                top: 0;
+                bottom: 0;
+                z-index: 1500;
+                transition: left 0.3s;
+            }
+
+            .sidebar.show {
+                left: 0;
+            }
+
+            .nav-sources {
+                display: none;
+            }
+
+            .song-item {
+                grid-template-columns: 40px 1fr 60px;
+            }
+
+            .song-album,
+            .song-actions {
+                display: none;
+            }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录注册页面 -->
+    <div id="authPage">
+        <div class="auth-container">
+            <div class="auth-header">
+                <div class="auth-logo">🎵</div>
+                <h1 class="auth-title">MusicSquare</h1>
+                <p class="auth-subtitle">音乐广场 - 发现更多好音乐</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">登录</button>
+                <button class="auth-tab" onclick="switchAuthTab('register')">注册</button>
+            </div>
+
+            <div class="error-msg" id="authError"></div>
+
+            <!-- 登录表单 -->
+            <form id="loginForm" class="auth-form active" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-input" id="loginUsername" placeholder="请输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="loginPassword" placeholder="请输入密码" required>
+                </div>
+                <button type="submit" class="form-button" id="loginBtn">登录</button>
+            </form>
+
+            <!-- 注册表单 -->
+            <form id="registerForm" class="auth-form" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-input" id="registerUsername" placeholder="3-20个字符" required minlength="3" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="registerPassword" placeholder="至少6个字符" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">确认密码</label>
+                    <input type="password" class="form-input" id="registerConfirmPassword" placeholder="请再次输入密码" required>
+                </div>
+                <button type="submit" class="form-button" id="registerBtn">注册</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 主应用界面 -->
+    <div id="mainApp">
+        <!-- 顶部导航 -->
+        <nav class="navbar">
+            <div class="nav-logo">
+                <div class="nav-logo-icon">🎵</div>
+                <span class="nav-logo-text">MusicSquare</span>
+            </div>
+
+            <div class="nav-search">
+                <div class="search-wrapper">
+                    <input type="text" class="search-input" id="searchInput" placeholder="搜索歌曲、歌手..." onkeypress="handleSearchEnter(event)">
+                    <button class="search-btn" onclick="handleSearch()">🔍</button>
+                </div>
+            </div>
+
+            <div class="nav-sources">
+                <div class="source-tag active" data-source="netease" onclick="selectSource('netease')">网易云</div>
+                <div class="source-tag" data-source="qq" onclick="selectSource('qq')">QQ音乐</div>
+                <div class="source-tag" data-source="migu" onclick="selectSource('migu')">咪咕</div>
+                <div class="source-tag" data-source="kuwo" onclick="selectSource('kuwo')">酷我</div>
+                <div class="multi-toggle" onclick="toggleMultiSource()">
+                    <input type="checkbox" id="multiSourceCheck" style="pointer-events: none;">
+                    <span>多源</span>
+                </div>
+            </div>
+
+            <div class="nav-user">
+                <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+                <div class="user-avatar" onclick="toggleUserMenu()">
+                    <span id="userInitial">U</span>
+                    <div class="user-menu" id="userMenu">
+                        <div class="menu-item" onclick="showUserSettings()">⚙️ 设置</div>
+                        <div class="menu-item" onclick="showSyncPlatforms()">🔄 同步平台</div>
+                        <div class="menu-item logout" onclick="handleLogout()">🚪 退出登录</div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容 -->
+        <div class="main">
+            <!-- 左侧边栏 -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">音乐库</div>
+                    <div class="sidebar-item active" onclick="showView('favorites')">❤️ 我的收藏</div>
+                    <div class="sidebar-item" onclick="showView('history')">🕐 播放历史</div>
+                    <div class="sidebar-item" onclick="showView('hot')">🔥 热门歌曲</div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-title">歌单</div>
+                    <div id="playlistContainer"></div>
+                    <button class="add-playlist-btn" onclick="showCreatePlaylist()">➕ 新建歌单</button>
+                </div>
+            </aside>
+
+            <!-- 内容区 -->
+            <div class="content">
+                <div class="content-header">
+                    <h2 class="content-title" id="contentTitle">我的收藏</h2>
+                    <p class="content-subtitle" id="contentSubtitle">共 0 首歌曲</p>
+                </div>
+
+                <div class="song-list" id="songList">
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        暂无歌曲，快去搜索添加吧！
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部播放器 -->
+        <div class="player">
+            <div class="player-info">
+                <div class="player-cover" id="playerCover"></div>
+                <div class="player-details">
+                    <div class="player-title" id="playerTitle">暂无播放</div>
+                    <div class="player-artist" id="playerArtist">-</div>
+                </div>
+            </div>
+
+            <div class="player-controls">
+                <div class="controls-buttons">
+                    <button class="control-btn" onclick="previousSong()">⏮️</button>
+                    <button class="control-btn play" onclick="togglePlay()">▶️</button>
+                    <button class="control-btn" onclick="nextSong()">⏭️</button>
+                    <button class="control-btn" onclick="togglePlayMode()" id="playModeBtn">🔁</button>
+                </div>
+                <div class="progress-bar">
+                    <span class="progress-time" id="currentTime">0:00</span>
+                    <div class="progress-track" onclick="seekTo(event)">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="progress-time" id="totalTime">0:00</span>
+                </div>
+            </div>
+
+            <div class="player-right">
+                <div class="volume-control">
+                    <span>🔊</span>
+                    <div class="volume-slider" onclick="setVolume(event)">
+                        <div class="volume-fill" id="volumeFill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 音频元素 -->
+    <audio id="audioPlayer"></audio>
+
+    <script>
+        // ========== 配置 ==========
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // 替换为你的Supabase URL
+        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 替换为你的Supabase密钥
+
+        // 初始化Supabase客户端
+        let supabase;
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (error) {
+            console.error('Supabase初始化失败:', error);
+        }
+
+        // ========== 全局状态 ==========
+        let currentUser = null;
+        let currentView = 'favorites';
+        let currentSources = ['netease'];
+        let multiSourceEnabled = false;
+        let currentSong = null;
+        let isPlaying = false;
+        let playMode = 'list'; // list, random, single
+        let playlist = [];
+        let currentIndex = 0;
+
+        // ========== 初始化 ==========
+        window.onload = function() {
+            checkAuth();
+        };
+
+        async function checkAuth() {
+            const savedUser = localStorage.getItem('musicSquareUser');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    showMainApp();
+                } catch (error) {
+                    console.error('用户信息解析失败:', error);
+                    showAuthPage();
+                }
+            } else {
+                showAuthPage();
+            }
+        }
+
+        function showAuthPage() {
+            document.getElementById('authPage').style.display = 'flex';
+            document.getElementById('mainApp').classList.remove('active');
+        }
+
+        function showMainApp() {
+            document.getElementById('authPage').style.display = 'none';
+            document.getElementById('mainApp').classList.add('active');
+            if (currentUser) {
+                document.getElementById('userInitial').textContent = currentUser.username.charAt(0).toUpperCase();
+                loadUserData();
+            }
+        }
+
+        // ========== 认证功能 ==========
+        function switchAuthTab(tab) {
+            const tabs = document.querySelectorAll('.auth-tab');
+            const forms = document.querySelectorAll('.auth-form');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            forms.forEach(f => f.classList.remove('active'));
+
+            document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active') ||
+                document.querySelector(`.auth-tab:${tab === 'login' ? 'first' : 'last'}-child`).classList.add('active');
+            document.getElementById(`${tab}Form`).classList.add('active');
+
+            hideError();
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                showError('请填写完整信息');
+                return;
+            }
+
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>';
+
+            try {
+                // 查询用户
+                const { data: users, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('username', username)
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (!users || users.length === 0) {
+                    showError('用户名或密码错误');
+                    return;
+                }
+
+                const user = users[0];
+
+                // 验证密码
+                const isValid = bcrypt.compareSync(password, user.password_hash);
+
+                if (!isValid) {
+                    showError('用户名或密码错误');
+                    return;
+                }
+
+                // 登录成功
+                currentUser = {
+                    id: user.id,
+                    username: user.username,
+                    avatar_url: user.avatar_url
+                };
+
+                localStorage.setItem('musicSquareUser', JSON.stringify(currentUser));
+                showMainApp();
+
+            } catch (error) {
+                console.error('登录错误:', error);
+                showError('登录失败，请重试');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '登录';
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('registerConfirmPassword').value;
+
+            if (!username || !password || !confirmPassword) {
+                showError('请填写完整信息');
+                return;
+            }
+
+            if (username.length < 3 || username.length > 20) {
+                showError('用户名长度应为3-20个字符');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('密码长度至少为6个字符');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showError('两次输入的密码不一致');
+                return;
+            }
+
+            const btn = document.getElementById('registerBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>';
+
+            try {
+                // 检查用户名是否已存在
+                const { data: existingUsers, error: checkError } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('username', username)
+                    .limit(1);
+
+                if (checkError) throw checkError;
+
+                if (existingUsers && existingUsers.length > 0) {
+                    showError('用户名已存在');
+                    return;
+                }
+
+                // 加密密码
+                const passwordHash = bcrypt.hashSync(password, 10);
+
+                // 创建用户
+                const { data: newUser, error: insertError } = await supabase
+                    .from('users')
+                    .insert([{
+                        username: username,
+                        password_hash: passwordHash,
+                        avatar_url: ''
+                    }])
+                    .select()
+                    .single();
+
+                if (insertError) throw insertError;
+
+                // 创建默认设置
+                await supabase
+                    .from('user_settings')
+                    .insert([{
+                        user_id: newUser.id,
+                        theme: 'dark',
+                        default_source: 'netease',
+                        play_mode: 'list'
+                    }]);
+
+                // 创建默认收藏歌单
+                await supabase
+                    .from('playlists')
+                    .insert([{
+                        user_id: newUser.id,
+                        name: '我的收藏',
+                        is_default: true
+                    }]);
+
+                // 注册成功，自动登录
+                currentUser = {
+                    id: newUser.id,
+                    username: newUser.username,
+                    avatar_url: newUser.avatar_url
+                };
+
+                localStorage.setItem('musicSquareUser', JSON.stringify(currentUser));
+                showMainApp();
+
+            } catch (error) {
+                console.error('注册错误:', error);
+                showError('注册失败，请重试');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '注册';
+            }
+        }
+
+        function handleLogout() {
+            if (confirm('确定要退出登录吗？')) {
+                currentUser = null;
+                localStorage.removeItem('musicSquareUser');
+                showAuthPage();
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('authError');
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+        }
+
+        function hideError() {
+            const errorEl = document.getElementById('authError');
+            errorEl.classList.remove('show');
+        }
+
+        // ========== 音乐搜索功能 ==========
+        function selectSource(source) {
+            if (multiSourceEnabled) {
+                // 多源模式
+                const tag = document.querySelector(`[data-source="${source}"]`);
+                if (tag.classList.contains('active')) {
+                    // 取消选择（至少保留一个）
+                    if (currentSources.length > 1) {
+                        tag.classList.remove('active');
+                        currentSources = currentSources.filter(s => s !== source);
+                    }
+                } else {
+                    // 添加选择
+                    tag.classList.add('active');
+                    currentSources.push(source);
+                }
+            } else {
+                // 单源模式
+                document.querySelectorAll('.source-tag').forEach(t => t.classList.remove('active'));
+                document.querySelector(`[data-source="${source}"]`).classList.add('active');
+                currentSources = [source];
+            }
+        }
+
+        function toggleMultiSource() {
+            multiSourceEnabled = !multiSourceEnabled;
+            document.getElementById('multiSourceCheck').checked = multiSourceEnabled;
+            document.querySelector('.multi-toggle').classList.toggle('active', multiSourceEnabled);
+
+            if (!multiSourceEnabled) {
+                // 切换回单源模式，只保留第一个选中的源
+                const firstSource = currentSources[0] || 'netease';
+                document.querySelectorAll('.source-tag').forEach(t => t.classList.remove('active'));
+                document.querySelector(`[data-source="${firstSource}"]`).classList.add('active');
+                currentSources = [firstSource];
+            }
+        }
+
+        function handleSearchEnter(event) {
+            if (event.key === 'Enter') {
+                handleSearch();
+            }
+        }
+
+        async function handleSearch() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            if (!keyword) {
+                alert('请输入搜索关键词');
+                return;
+            }
+
+            // 这里需要调用原有的音乐搜索API
+            // 由于代码过长，这部分保持原有逻辑
+            console.log('搜索:', keyword, '音乐源:', currentSources);
+            alert('搜索功能需要集成原有的音乐API');
+        }
+
+        // ========== 用户数据加载 ==========
+        async function loadUserData() {
+            try {
+                // 加载收藏
+                await loadFavorites();
+
+                // 加载歌单
+                await loadPlaylists();
+
+                // 加载播放历史
+                await loadHistory();
+
+            } catch (error) {
+                console.error('加载用户数据失败:', error);
+            }
+        }
+
+        async function loadFavorites() {
+            // 加载收藏的歌曲
+            const { data: playlists, error } = await supabase
+                .from('playlists')
+                .select('id')
+                .eq('user_id', currentUser.id)
+                .eq('is_default', true)
+                .limit(1);
+
+            if (error) {
+                console.error('加载收藏失败:', error);
+                return;
+            }
+
+            if (playlists && playlists.length > 0) {
+                const { data: songs } = await supabase
+                    .from('playlist_songs')
+                    .select('*')
+                    .eq('playlist_id', playlists[0].id)
+                    .order('created_at', { ascending: false });
+
+                console.log('收藏歌曲:', songs);
+            }
+        }
+
+        async function loadPlaylists() {
+            const { data: playlists, error } = await supabase
+                .from('playlists')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .eq('is_default', false)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('加载歌单失败:', error);
+                return;
+            }
+
+            const container = document.getElementById('playlistContainer');
+            container.innerHTML = '';
+
+            if (playlists && playlists.length > 0) {
+                playlists.forEach(playlist => {
+                    const item = document.createElement('div');
+                    item.className = 'sidebar-item';
+                    item.innerHTML = `📁 ${playlist.name}`;
+                    item.onclick = () => showPlaylist(playlist.id);
+                    container.appendChild(item);
+                });
+            }
+        }
+
+        async function loadHistory() {
+            // 加载播放历史
+            const { data: history, error } = await supabase
+                .from('play_history')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('played_at', { ascending: false })
+                .limit(50);
+
+            if (error) {
+                console.error('加载历史失败:', error);
+                return;
+            }
+
+            console.log('播放历史:', history);
+        }
+
+        // ========== 视图切换 ==========
+        function showView(view) {
+            currentView = view;
+
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            switch(view) {
+                case 'favorites':
+                    document.getElementById('contentTitle').textContent = '我的收藏';
+                    loadFavorites();
+                    break;
+                case 'history':
+                    document.getElementById('contentTitle').textContent = '播放历史';
+                    loadHistory();
+                    break;
+                case 'hot':
+                    document.getElementById('contentTitle').textContent = '热门歌曲';
+                    loadHotSongs();
+                    break;
+            }
+        }
+
+        function showPlaylist(playlistId) {
+            console.log('显示歌单:', playlistId);
+        }
+
+        function showCreatePlaylist() {
+            const name = prompt('请输入歌单名称：');
+            if (name && name.trim()) {
+                createPlaylist(name.trim());
+            }
+        }
+
+        async function createPlaylist(name) {
+            try {
+                const { data, error } = await supabase
+                    .from('playlists')
+                    .insert([{
+                        user_id: currentUser.id,
+                        name: name,
+                        is_default: false
+                    }])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                alert('歌单创建成功！');
+                loadPlaylists();
+            } catch (error) {
+                console.error('创建歌单失败:', error);
+                alert('创建歌单失败');
+            }
+        }
+
+        function loadHotSongs() {
+            alert('热门歌曲功能开发中...');
+        }
+
+        // ========== 播放器控制 ==========
+        function togglePlay() {
+            const audio = document.getElementById('audioPlayer');
+            if (isPlaying) {
+                audio.pause();
+                isPlaying = false;
+                document.querySelector('.control-btn.play').textContent = '▶️';
+            } else {
+                audio.play();
+                isPlaying = true;
+                document.querySelector('.control-btn.play').textContent = '⏸️';
+            }
+        }
+
+        function previousSong() {
+            if (playMode === 'random') {
+                currentIndex = Math.floor(Math.random() * playlist.length);
+            } else {
+                currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+            }
+            playSong(playlist[currentIndex]);
+        }
+
+        function nextSong() {
+            if (playMode === 'single') {
+                // 单曲循环
+                const audio = document.getElementById('audioPlayer');
+                audio.currentTime = 0;
+                audio.play();
+            } else if (playMode === 'random') {
+                currentIndex = Math.floor(Math.random() * playlist.length);
+                playSong(playlist[currentIndex]);
+            } else {
+                currentIndex = (currentIndex + 1) % playlist.length;
+                playSong(playlist[currentIndex]);
+            }
+        }
+
+        function togglePlayMode() {
+            const modes = ['list', 'random', 'single'];
+            const icons = ['🔁', '🔀', '🔂'];
+            const currentModeIndex = modes.indexOf(playMode);
+            const nextModeIndex = (currentModeIndex + 1) % modes.length;
+
+            playMode = modes[nextModeIndex];
+            document.getElementById('playModeBtn').textContent = icons[nextModeIndex];
+        }
+
+        function playSong(song) {
+            if (!song) return;
+
+            currentSong = song;
+            const audio = document.getElementById('audioPlayer');
+            audio.src = song.url;
+            audio.play();
+            isPlaying = true;
+
+            document.getElementById('playerTitle').textContent = song.title;
+            document.getElementById('playerArtist').textContent = song.artist;
+            document.querySelector('.control-btn.play').textContent = '⏸️';
+
+            // 记录播放历史
+            savePlayHistory(song);
+        }
+
+        async function savePlayHistory(song) {
+            try {
+                await supabase
+                    .from('play_history')
+                    .insert([{
+                        user_id: currentUser.id,
+                        song_id: song.id,
+                        song_data: song
+                    }]);
+            } catch (error) {
+                console.error('保存播放历史失败:', error);
+            }
+        }
+
+        function seekTo(event) {
+            const audio = document.getElementById('audioPlayer');
+            const bar = event.currentTarget;
+            const percent = event.offsetX / bar.offsetWidth;
+            audio.currentTime = audio.duration * percent;
+        }
+
+        function setVolume(event) {
+            const audio = document.getElementById('audioPlayer');
+            const slider = event.currentTarget;
+            const percent = event.offsetX / slider.offsetWidth;
+            audio.volume = percent;
+            document.getElementById('volumeFill').style.width = (percent * 100) + '%';
+        }
+
+        // 音频事件监听
+        const audio = document.getElementById('audioPlayer');
+
+        audio.addEventListener('timeupdate', function() {
+            if (audio.duration) {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                document.getElementById('progressFill').style.width = percent + '%';
+                document.getElementById('currentTime').textContent = formatTime(audio.currentTime);
+                document.getElementById('totalTime').textContent = formatTime(audio.duration);
+            }
+        });
+
+        audio.addEventListener('ended', function() {
+            nextSong();
+        });
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // ========== 其他功能 ==========
+        function toggleUserMenu() {
+            document.getElementById('userMenu').classList.toggle('show');
+        }
+
+        function toggleTheme() {
+            alert('主题切换功能开发中...');
+        }
+
+        function showUserSettings() {
+            alert('用户设置功能开发中...');
+        }
+
+        function showSyncPlatforms() {
+            alert('平台同步功能开发中...');
+        }
+
+        // 点击外部关闭用户菜单
+        document.addEventListener('click', function(event) {
+            const userAvatar = document.querySelector('.user-avatar');
+            const userMenu = document.getElementById('userMenu');
+            if (!userAvatar.contains(event.target)) {
+                userMenu.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
