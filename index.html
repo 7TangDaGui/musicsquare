@@ -1632,7 +1632,6 @@
       enabledSources:{migu:true, netease:true, qq:true, kuwo:true},
       perSourceLimit:10,
       perSourceCurrentLimit:{migu:10, netease:10, qq:10, kuwo:10},
-      // 网易云 page 可以保留，但播放链接用 choose 计算
       perSourcePage:{migu:1, netease:1, qq:1, kuwo:1},
 
       searchKeyword:'',
@@ -1707,6 +1706,36 @@
       updatePlaylistInfoLabel();
     }
 
+    // ========== 旧的质量映射函数，暂时保留（不再使用 API 的 quality 字段） ==========
+    function neteaseQualityToTag(q){
+      const s = (q || '').toString().toLowerCase();
+      if (/lossless|无损|flac|ape|wav|hi-?res|sq|臻品|臻音|高清臻音|spatial/.test(s)) return 'lossless';
+      return 'normal';
+    }
+    function kuwoQualityToTag(qualityStr, urlStr, actualLevel){
+      const s1=(qualityStr||'').toString().toLowerCase();
+      const s2=(urlStr||'').toString().toLowerCase();
+      const s3=(actualLevel||'').toString().toLowerCase();
+      if (s3==='zp' || s3==='lossless') return 'lossless';
+      if (/flac|lossless|无损|超高/.test(s1)) return 'lossless';
+      if (s2.endsWith('.flac') || s2.includes('.flac?')) return 'lossless';
+      return 'normal';
+    }
+
+    // ========== 新增：统一根据音频链接后缀判断音质 ==========
+    function inferQualityFromUrl(url){
+      if(!url) return {tag:null,label:''};
+      let base = url.split('?')[0].toLowerCase();
+      const m = base.match(/\.([a-z0-9]+)$/);
+      const ext = m ? m[1] : '';
+      const losslessExts = ['flac','wav','ape','alac','aiff'];
+      if (losslessExts.includes(ext)) {
+        return {tag:'lossless', label:'LOSSLESS'};
+      }
+      // 其他一律当作 320K 显示
+      return {tag:'320k', label:'320K'};
+    }
+
     // ===================== 各平台搜索 =====================
 
     async function searchMigu(kw,limit){
@@ -1726,9 +1755,8 @@
             title:it.title||'',artist:it.singer||'',album:'',
             cover:null,audioUrl:null,lrc:null,lrcUrl:null,
             detailsLoaded:false,
-            // 咪咕统一认为是 320k（非无损），UI 中单独显示
-            quality:'normal',
-            kbps:'320kbps'
+            quality:null,
+            qualityLabel:null
           };
           state.trackMap.set(uid,track);
           state.searchResults.push(track); added++;
@@ -1737,25 +1765,7 @@
       return added;
     }
 
-    // 网易云质量 → UI 标签（仅用于区分无损与否）
-    function neteaseQualityToTag(q){
-      const s = (q || '').toString().toLowerCase();
-      if (/lossless|无损|flac|ape|wav|hi-?res|sq|臻品|臻音|高清臻音|spatial/.test(s)) return 'lossless';
-      return 'normal';
-    }
-
-    // 酷我质量映射（detail 接口会覆盖）
-    function kuwoQualityToTag(qualityStr, urlStr, actualLevel){
-      const s1=(qualityStr||'').toString().toLowerCase();
-      const s2=(urlStr||'').toString().toLowerCase();
-      const s3=(actualLevel||'').toString().toLowerCase();
-      if (s3==='zp' || s3==='lossless') return 'lossless';
-      if (/flac|lossless|无损|超高/.test(s1)) return 'lossless';
-      if (s2.endsWith('.flac') || s2.includes('.flac?')) return 'lossless';
-      return 'normal';
-    }
-
-    // 网易云搜索：仍用 vkeys 的 page + num 搜索列表
+    // 网易云搜索（用 vkeys，page + num）
     async function searchNetease(kw, page, num){
       const url=`https://api.vkeys.cn/v2/music/netease?word=${encodeURIComponent(kw)}&page=${encodeURIComponent(page)}&num=${encodeURIComponent(num)}`;
       let added=0;
@@ -1772,7 +1782,6 @@
           const track={
             uid,
             source:'netease',
-            // 用于后面 choose：第几个搜索结果（跨页从 1 开始累加）
             displayIndex:(Math.max(1,page)-1)*Math.max(1,num) + (idx+1),
             keyword:kw,
 
@@ -1787,9 +1796,8 @@
             lrcUrl:null,
 
             detailsLoaded:false,
-            // 初始质量先占位，真正以详情接口为准
-            quality: 'normal',
-            kbps: null
+            quality:null,
+            qualityLabel:null
           };
           state.trackMap.set(uid,track);
           state.searchResults.push(track);
@@ -1800,7 +1808,7 @@
       return added;
     }
 
-    // ✅ QQ 单独搜索
+    // QQ 搜索
     async function searchQQ(kw, limit){
       const url=`https://music-dl.sayqz.com/api?&type=search&keyword=${encodeURIComponent(kw)}&source=qq&limit=${encodeURIComponent(limit)}`;
       let added=0;
@@ -1825,9 +1833,17 @@
             lrc:null,
             lrcUrl:it.lrc||null,
             detailsLoaded:!!it.url,
-            quality:'normal',
-            kbps:null
+            quality:null,
+            qualityLabel:null
           };
+
+          // 如果搜索阶段就已经有 url，则直接用链接判断音质
+          if (track.audioUrl) {
+            const q = inferQualityFromUrl(track.audioUrl);
+            track.quality = q.tag;
+            track.qualityLabel = q.label;
+          }
+
           state.trackMap.set(uid,track);
           state.searchResults.push(track);
           added++;
@@ -1836,7 +1852,7 @@
       return added;
     }
 
-    // ✅ 酷我搜索，用 kw-api
+    // 酷我搜索
     async function searchKuwo(kw, limit){
       const url=`https://kw-api.cenguigui.cn/?name=${encodeURIComponent(kw)}&page=1&limit=${encodeURIComponent(limit)}`;
       let added=0;
@@ -1865,8 +1881,8 @@
             lrc:null,
             lrcUrl:null,
             detailsLoaded:false,
-            quality:'normal',
-            kbps:null
+            quality:null,
+            qualityLabel:null
           };
 
           state.trackMap.set(uid,track);
@@ -1891,7 +1907,6 @@
       if(reset){
         Object.keys(state.perSourceCurrentLimit)
           .forEach(k=>state.perSourceCurrentLimit[k]=state.perSourceLimit);
-
         Object.keys(state.perSourcePage).forEach(k=>state.perSourcePage[k]=1);
 
         state.searchResults=[];
@@ -1948,11 +1963,15 @@
         audioUrl:j.music_url||track.audioUrl,
         lrcUrl:j.lrc_url||track.lrcUrl,
         pageUrl:j.link||track.pageUrl,
-        detailsLoaded:true,
-        // 咪咕固定当做 320k
-        quality: track.quality || 'normal',
-        kbps: track.kbps || '320kbps'
+        detailsLoaded:true
       });
+
+      // 根据音频链接后缀判断音质
+      if (track.audioUrl) {
+        const q = inferQualityFromUrl(track.audioUrl);
+        track.quality = q.tag;
+        track.qualityLabel = q.label;
+      }
 
       if(track.lrcUrl && !track.lrc){
         try{
@@ -1962,46 +1981,38 @@
       }
     }
 
-    // ✅ 网易云详情：改用新接口
-    //   https://api.vkeys.cn/v2/music/netease?word=关键词&choose=第几个结果&quality=9
+    // 网易云详情：meting 拿音源 + vkeys 拿歌词
     async function fetchNeteaseDetails(track){
-      const choose = track.displayIndex || 1;
-      const api = `https://api.vkeys.cn/v2/music/netease?word=${encodeURIComponent(track.keyword)}&choose=${encodeURIComponent(choose)}&quality=9`;
+      const metingApi=`https://api.qijieya.cn/meting/?type=song&id=${encodeURIComponent(track.songid)}`;
+      const res=await fetch(metingApi);
+      const j=await res.json();
+      if(!Array.isArray(j) || !j.length) throw new Error('netease meting detail empty');
 
-      const res = await fetch(api);
-      const j   = await res.json();
-      if(!j || j.code !== 200 || !j.data){
-        throw new Error('netease vkeys detail failed');
+      const d=j[0]||{};
+      Object.assign(track,{
+        title:d.name||track.title,
+        artist:d.artist||track.artist,
+        audioUrl:d.url||track.audioUrl,
+        cover:d.pic||track.cover
+      });
+
+      // 根据音频链接后缀判断音质
+      if (track.audioUrl) {
+        const q = inferQualityFromUrl(track.audioUrl);
+        track.quality = q.tag;
+        track.qualityLabel = q.label;
       }
 
-      const d = j.data;
-
-      // 播放链接与基础信息
-      track.songid = d.id    || track.songid;
-      track.title  = d.song  || track.title;
-      track.artist = d.singer|| track.artist;
-      track.album  = d.album || track.album;
-      track.cover  = d.cover || track.cover;
-      track.audioUrl = d.url || track.audioUrl;
-      track.kbps   = d.kbps  || track.kbps;
-
-      // 用 quality + kbps 判断是否无损
-      const qStr = ((d.quality || '') + ' ' + (d.kbps || '')).toString();
-      track.quality = neteaseQualityToTag(qStr) || track.quality || 'normal';
-
-      // 歌词仍然用 vkeys lyric 接口
-      if (track.songid){
-        const lyricApi=`https://api.vkeys.cn/v2/music/netease/lyric?id=${encodeURIComponent(track.songid)}`;
-        try{
-          const lr=await fetch(lyricApi);
-          const lj=await lr.json();
-          if(lj && lj.code===200 && lj.data){
-            track.lrc = lj.data.lrc || track.lrc || null;
-            track.lrcUrl = track.lrcUrl || lyricApi;
-          }
-        }catch(e){
-          console.warn('netease(vkeys) lyric fetch failed', e);
+      const lyricApi=`https://api.vkeys.cn/v2/music/netease/lyric?id=${encodeURIComponent(track.songid)}`;
+      try{
+        const lr=await fetch(lyricApi);
+        const lj=await lr.json();
+        if(lj && lj.code===200 && lj.data){
+          track.lrc = lj.data.lrc || track.lrc || null;
+          track.lrcUrl = track.lrcUrl || lyricApi;
         }
+      }catch(e){
+        console.warn('netease(vkeys) lyric fetch failed', e);
       }
 
       track.detailsLoaded=true;
@@ -2010,6 +2021,12 @@
     async function fetchQQDetails(track){
       if(track.lrcUrl&&!track.lrc){
         try{const r=await fetch(track.lrcUrl);track.lrc=await r.text();}catch(e){}
+      }
+      // QQ：如果之前还没标记质量，这里再根据 url 判断一次
+      if (track.audioUrl && !track.qualityLabel) {
+        const q = inferQualityFromUrl(track.audioUrl);
+        track.quality = q.tag;
+        track.qualityLabel = q.label;
       }
       track.detailsLoaded=true;
     }
@@ -2021,7 +2038,6 @@
       if(!j || j.code!==200 || !j.data) throw new Error('kuwo kw-api detail failed');
 
       const d=j.data;
-      const actual = d.level && d.level.actual ? d.level.actual : '';
       Object.assign(track,{
         title:d.name || track.title,
         artist:d.artist || track.artist,
@@ -2030,10 +2046,15 @@
         audioUrl:d.url || track.audioUrl,
         lrc: d.lyric || track.lrc || null,
         lrcUrl: null,
-        quality: kuwoQualityToTag(d.quality, d.url, actual),
-        kbps: track.kbps || null,
         detailsLoaded:true
       });
+
+      // 酷我：根据最终 url 后缀判断音质
+      if (track.audioUrl) {
+        const q = inferQualityFromUrl(track.audioUrl);
+        track.quality = q.tag;
+        track.qualityLabel = q.label;
+      }
     }
 
     async function ensureTrackDetails(track){
@@ -2152,13 +2173,10 @@
         dom.trackSourcePill.appendChild(dot);
         dom.trackSourcePill.appendChild(txt);
 
-        // 音质标签：咪咕固定 320K；网易云无损高亮；其它根据 lossless 判断
-        if (track.source === 'migu') {
+        // 显示音质：LOSSLESS 或 320K（根据 qualityLabel）
+        if (track.qualityLabel) {
           dom.trackQualityPill.style.display = 'inline-block';
-          dom.trackQualityPill.textContent = '320K';
-        } else if (track.quality === 'lossless') {
-          dom.trackQualityPill.style.display = 'inline-block';
-          dom.trackQualityPill.textContent = state.language === 'zh' ? '无损' : 'LOSSLESS';
+          dom.trackQualityPill.textContent = track.qualityLabel;
         } else {
           dom.trackQualityPill.style.display = 'none';
         }
