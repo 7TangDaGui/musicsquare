@@ -10,7 +10,9 @@
 // If you are deploying this project, you MUST change the API_BASE below.
 
 // Cloudflare Worker 后端地址
-const API_BASE = 'https://yunduanyingyue.tmichi1001.workers.dev/api';
+// 注意：如果您的后端部署在 Cloudflare Workers，默认的 *.workers.dev 域名在国内可能无法访问
+// 强烈建议绑定自定义二级域名 (Custom Domain) 以解决此问题，具体操作请参考文档 DEPLOY.md 中的“进阶”部分
+const API_BASE = 'https://api.yexin.de5.net/api';
 
 // 初始化 MusicAPI 的 Worker 端点
 if (typeof MusicAPI !== 'undefined') {

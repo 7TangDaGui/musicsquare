@@ -71,6 +71,50 @@ const MusicAPI = {
         return url;
     },
 
+
+    // Netease API Request Helper (Proxy via Worker)
+    async _requestNetease(path) {
+        const targetUrl = `${this.endpoints.netease}${path}`;
+
+        // 如果没有 worker 端点，回退到直接请求
+        if (!this.endpoints.worker) {
+            const res = await fetch(targetUrl);
+            return await res.json();
+        }
+
+        const url = `${this.endpoints.worker}/tunehub/request`;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: targetUrl,
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                        'Referer': 'https://music.163.com/'
+                    }
+                })
+            });
+            const result = await res.json();
+
+            if (!result.success && result.message) {
+                console.warn('Netease Proxy failed:', result.message);
+                // Fallback attempt?
+            }
+
+            let data = result.data;
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch (e) { }
+            }
+            // 如果 data 为空或者失败，尝试直接返回 result (视 worker 实现而定)
+            return data || result;
+        } catch (e) {
+            console.error('Netease Proxy request failed:', e);
+            throw e;
+        }
+    },
+
     // 搜索 - 根据平台使用不同的 API
     async search(keyword, source, page = 1, limit = 20, signal = null) {
         if (!keyword) return [];
@@ -109,10 +153,9 @@ const MusicAPI = {
     // 网易云搜索 - 使用 Vercel 公共实例
     async _searchNetease(keyword, page, limit, signal) {
         const offset = (page - 1) * limit;
-        const url = `${this.endpoints.netease}/search?keywords=${encodeURIComponent(keyword)}&offset=${offset}&limit=${limit}`;
-        const fetchOptions = signal ? { signal } : {};
-        const res = await fetch(url, fetchOptions);
-        const json = await res.json();
+        const path = `/search?keywords=${encodeURIComponent(keyword)}&offset=${offset}&limit=${limit}`;
+
+        const json = await this._requestNetease(path);
 
         if (json.code !== 200 || !json.result || !json.result.songs) return [];
 
@@ -486,58 +529,59 @@ const MusicAPI = {
     },
 
     async _getPlaylistNetease(playlistId) {
-        const url = `${this.endpoints.netease}/playlist/detail?id=${playlistId}`;
-        const res = await fetch(url);
-        const json = await res.json();
+        try {
+            const json = await this._requestNetease(`/playlist/detail?id=${playlistId}`);
 
-        if (json.code !== 200 || !json.playlist) return { name: '未知歌单', tracks: [] };
+            if (json.code !== 200 || !json.playlist) return { name: '未知歌单', tracks: [] };
 
-        const playlist = json.playlist;
-        // 移除限制，获取所有 trackIds
-        const trackIds = playlist.trackIds ? playlist.trackIds.map(t => t.id) : [];
+            const playlist = json.playlist;
+            // 移除限制，获取所有 trackIds
+            const trackIds = playlist.trackIds ? playlist.trackIds.map(t => t.id) : [];
 
-        // 批量获取详情 (分块大小 50，避免 URL 过长)
-        let tracks = [];
-        if (trackIds.length > 0) {
-            const CHUNK_SIZE = 50;
-            const chunks = [];
-            for (let i = 0; i < trackIds.length; i += CHUNK_SIZE) {
-                chunks.push(trackIds.slice(i, i + CHUNK_SIZE));
+            // 批量获取详情 (分块大小 50，避免 URL 过长)
+            let tracks = [];
+            if (trackIds.length > 0) {
+                const CHUNK_SIZE = 50;
+                const chunks = [];
+                for (let i = 0; i < trackIds.length; i += CHUNK_SIZE) {
+                    chunks.push(trackIds.slice(i, i + CHUNK_SIZE));
+                }
+
+                // 获取分块数据 (顺序执行以保证稳定性)
+                const detailMap = new Map();
+                for (const chunkIds of chunks) {
+                    try {
+                        const detailJson = await this._requestNetease(`/song/detail?ids=${chunkIds.join(',')}`);
+                        if (detailJson.songs) {
+                            detailJson.songs.forEach(s => detailMap.set(String(s.id), s));
+                        }
+                    } catch (e) { console.error("Chunk fetch failed", e); }
+                }
+
+                // 重新映射以保持 trackIds 顺序
+                tracks = trackIds.map(tid => {
+                    const item = detailMap.get(String(tid));
+                    if (!item) return null;
+                    return {
+                        id: `netease-${item.id}`,
+                        songId: String(item.id),
+                        title: item.name || '未知歌曲',
+                        artist: item.ar ? item.ar.map(a => a.name).join(', ') : '未知歌手',
+                        album: item.al ? item.al.name : '-',
+                        cover: item.al && item.al.picUrl ? item.al.picUrl : '',
+                        source: 'netease'
+                    };
+                }).filter(t => t !== null);
             }
 
-            // 获取分块数据 (顺序执行以保证稳定性)
-            const detailMap = new Map();
-            for (const chunkIds of chunks) {
-                try {
-                    const detailUrl = `${this.endpoints.netease}/song/detail?ids=${chunkIds.join(',')}`;
-                    const detailRes = await fetch(detailUrl);
-                    const detailJson = await detailRes.json();
-                    if (detailJson.songs) {
-                        detailJson.songs.forEach(s => detailMap.set(String(s.id), s));
-                    }
-                } catch (e) { console.error("Chunk fetch failed", e); }
-            }
-
-            // 重新映射以保持 trackIds 顺序
-            tracks = trackIds.map(tid => {
-                const item = detailMap.get(String(tid));
-                if (!item) return null;
-                return {
-                    id: `netease-${item.id}`,
-                    songId: String(item.id),
-                    title: item.name || '未知歌曲',
-                    artist: item.ar ? item.ar.map(a => a.name).join(', ') : '未知歌手',
-                    album: item.al ? item.al.name : '-',
-                    cover: item.al && item.al.picUrl ? item.al.picUrl : '',
-                    source: 'netease'
-                };
-            }).filter(t => t !== null);
+            return {
+                name: playlist.name || '未知歌单',
+                tracks
+            };
+        } catch (e) {
+            console.error('Get Playlist Netease Error:', e);
+            return { name: '未知歌单', tracks: [] };
         }
-
-        return {
-            name: playlist.name || '未知歌单',
-            tracks
-        };
     },
 
     async _getPlaylistQQ(playlistId) {
@@ -644,9 +688,7 @@ const MusicAPI = {
     },
 
     async _getToplistsNetease() {
-        const url = `${this.endpoints.netease}/toplist`;
-        const res = await fetch(url);
-        const json = await res.json();
+        const json = await this._requestNetease('/toplist');
 
         if (json.code !== 200 || !json.list) return [];
 
@@ -739,18 +781,14 @@ const MusicAPI = {
     },
 
     async _getToplistDetailNetease(id) {
-        const url = `${this.endpoints.netease}/playlist/detail?id=${id}`;
-        const res = await fetch(url);
-        const json = await res.json();
+        const json = await this._requestNetease(`/playlist/detail?id=${id}`);
 
         if (json.code !== 200 || !json.playlist) return [];
 
         const trackIds = json.playlist.trackIds ? json.playlist.trackIds.map(t => t.id).slice(0, 100) : [];
         if (trackIds.length === 0) return [];
 
-        const detailUrl = `${this.endpoints.netease}/song/detail?ids=${trackIds.join(',')}`;
-        const detailRes = await fetch(detailUrl);
-        const detailJson = await detailRes.json();
+        const detailJson = await this._requestNetease(`/song/detail?ids=${trackIds.join(',')}`);
 
         if (!detailJson.songs) return [];
 

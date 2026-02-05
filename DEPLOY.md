@@ -39,6 +39,29 @@
 5.  **获取后端地址**
     *   在 Worker 详情页顶部，找到 **Preview** 下方的链接 (例如 `https://pikachu-music.xxx.workers.dev`)。
     *   复制这个链接，这就是您的**后端 API 地址**。
+    *   *(如果不绑定自定义域名，该地址在国内可能无法访问，请参考下方进阶部分)*
+
+### 进阶：解决国内无法访问问题 (绑定自定义域名)
+
+由于 `*.workers.dev` 域名在国内部分地区被阻断，强烈建议绑定自定义域名。
+
+1.  **获取免费/付费域名**
+    *   推荐使用 **[帝恩社 (dnshe.com)](https://my.dnshe.com/index.php?m=domain_hub)** 获取免费二级域名。
+    *   **邀请码**: `HCC427FA1A`
+    *   注册并登录后，搜索想要的域名并“购买” (有免费选项)。
+
+2.  **接入 Cloudflare**
+    *   在 Cloudflare Dashboard 点击 **Add a site**。
+    *   输入您刚申请的域名。
+    *   **关键步骤**：Cloudflare 会给您两个 Nameserver (NS) 地址 (例如 `bob.ns.cloudflare.com`)。
+    *   回到域名注册商 (如帝恩社) 的控制台，找到 **修改 DNS/Nameserver** 的地方，将原来的 NS 替换为 Cloudflare 提供的这两个。
+
+3.  **绑定 Worker**
+    *   回到 Cloudflare 的 **Workers & Pages** -> 选择您的 Worker (如 `pikachu-music`)。
+    *   点击 **Settings** -> **Triggers**。
+    *   在 **Custom Domains** 区域，点击 **Add Custom Domain**。
+    *   输入您刚才接入的域名 (例如 `api.yourname.dnshe.net`)，点击 **Add Custom Domain**。
+    *   等待几分钟生效。现在，`https://api.yourname.dnshe.net` 就是您的**新后端 API 地址**！请用这个地址替换 `js/service.js` 中的配置。
 
 ### 第二步：前端部署 (GitHub Pages)
 
