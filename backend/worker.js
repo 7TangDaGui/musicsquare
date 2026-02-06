@@ -1,29 +1,65 @@
-﻿
 export default {
     async fetch(request, env) {
-        // 1. CORS Headers
-        if (request.method === "OPTIONS") {
-            return new Response(null, {
-                headers: {
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                },
-            });
-        }
+        // ==========================================
+        // 1. 安全配置区域 (Security Configuration)
+        // ==========================================
 
-        const corsHeaders = {
-            "Access-Control-Allow-Origin": "*",
-            "Content-Type": "application/json",
-        };
+        // 允许访问的域名列表 (白名单)
+        const ALLOWED_ORIGINS = [
+            "https://你的github用户名.github.io",//记得修改
+            "http://127.0.0.1:5500", // 本地开发备用
+            "http://localhost:5500"
+        ];
 
-        const json = (data, status = 200) =>
-            new Response(JSON.stringify(data), { status, headers: corsHeaders });
-        const error = (msg, status = 400) =>
-            new Response(JSON.stringify({ error: msg }), { status, headers: corsHeaders });
-
+        const origin = request.headers.get("origin");
         const url = new URL(request.url);
         const path = url.pathname;
+
+        // --- 安全检查: Origin 校验 ---
+        // 辅助函数：检查 Origin 是否在白名单中
+        function isAllowedOrigin(origin) {
+            if (!origin) return false;
+            return ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed));
+        }
+
+        // 如果 Origin 存在且不在白名单内，直接拒绝
+        if (origin && !isAllowedOrigin(origin)) {
+             return new Response("Forbidden: Invalid Origin", { status: 403 });
+        }
+
+        // ==========================================
+        // 2. CORS 设置 (CORS Headers)
+        // ==========================================
+        
+        // 动态设置 CORS，不再使用 "*"
+        const corsHeaders = {
+            "Access-Control-Allow-Origin": origin || "", // 动态回显，只允许白名单内的域名
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+            "Access-Control-Max-Age": "86400",
+        };
+
+        // 处理预检请求 (Browser Pre-flight)
+        if (request.method === "OPTIONS") {
+            return new Response(null, { headers: corsHeaders });
+        }
+
+        // 辅助响应函数
+        const json = (data, status = 200) =>
+            new Response(JSON.stringify(data), { 
+                status, 
+                headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            });
+            
+        const error = (msg, status = 400) =>
+            new Response(JSON.stringify({ error: msg }), { 
+                status, 
+                headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            });
+
+        // ==========================================
+        // 3. 业务逻辑 (Business Logic) - 保持原样
+        // ==========================================
 
         // --- Auth Helper ---
         const getUserId = () => {
@@ -957,6 +993,7 @@ export default {
                 if (cachedResponse) {
                     // Return cached response with CORS headers
                     const newHeaders = new Headers(cachedResponse.headers);
+                    // 允许所有来源访问代理音频（修复跨域播放问题）
                     newHeaders.set("Access-Control-Allow-Origin", "*");
                     newHeaders.set("X-Cache", "HIT");
                     return new Response(cachedResponse.body, {
@@ -1004,7 +1041,10 @@ export default {
 
                     // Use waitUntil if available (in event context)
                     try {
-                        cache.put(cacheKey, cacheableResponse);
+                        // env.waitUntil(cache.put(cacheKey, cacheableResponse));
+                         // 注意：如果 env.waitUntil 不可用，直接调用 cache.put 可能会报错，这里加个 try catch 忽略
+                         // 在 Module Worker 中通常使用 ctx.waitUntil，这里为了兼容代码没有 ctx，直接忽略 promise
+                         cache.put(cacheKey, cacheableResponse).catch(() => {});
                     } catch (e) {
                         // Ignore cache errors
                     }
@@ -1027,7 +1067,6 @@ export default {
             }
         }
 
-        return error("Not Found", 404);
+        return error("API Not Found", 404);
     },
 };
-
